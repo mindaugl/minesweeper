@@ -1,0 +1,9 @@
+[project]
+name = "pygame-minesweeper"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "pygame-ce>=2.5.7",
+    "pyinstaller>=6.21.0",
+    "ruff>=0.16.1",
+]
