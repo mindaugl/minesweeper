@@ -202,9 +202,14 @@ def reveal_cells(screen, cells_array, images, i, j):
         reveal_cells(screen, cells_array, images, i + 1, j - 1)
 
 
-def game_win(screen):
+def game_win(screen, time):
     font = pygame.font.SysFont(None, 56)
-    text = "You Won!"
+    best_time = get_best_time()
+    if not best_time or time < best_time:
+        text = f"You Won! New Best Time: {time / 1000}s"
+        write_best_time(time)
+    else:
+        text = "You Won!"
     text_surface = font.render(text, True, "green")
     text_rect = text_surface.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
     screen.blit(text_surface, text_rect)
@@ -235,6 +240,30 @@ def play_music():
     pygame.mixer.music.play(-1, 0.0)
 
 
+def get_sound_click():
+    main_path = get_files_path()
+    sound_click = pygame.mixer.Sound(f"{main_path}/audio/click3.mp3")
+    sound_click.set_volume(0.2)
+    return sound_click
+
+
+def get_best_time():
+    main_path = get_files_path()
+    with open(f"{main_path}/best_time.txt", "r") as f:
+        time_text = f.read()
+    if len(time_text) > 0:
+        return int(time_text)
+    return None
+
+
+def write_best_time(value):
+    main_path = get_files_path()
+    if not value:
+        value = ""
+    with open(f"{main_path}/best_time.txt", "w") as f:
+        f.write(str(value))
+
+
 async def main():
 
     # Initialize
@@ -253,17 +282,15 @@ async def main():
         "reset": load_image("reset"),
     }
 
-    main_path = get_files_path()
-    sound_click = pygame.mixer.Sound(f"{main_path}/audio/click3.mp3")
-    sound_click.set_volume(0.2)
+    sound_click = get_sound_click()
 
     cells_array, reset_cell = new_game(screen, cell_images, cell_values, cell_states)
 
     play_music()
 
     while running:
-        if reveal_cells.empty_remaining == 0:
-            game_win(screen)
+        if reveal_cells.empty_remaining == 0 and not game_limbo:
+            game_win(screen, show_timer.time_ms)
             game_limbo = True
         if not game_limbo:
             running = show_timer(clock, screen)
