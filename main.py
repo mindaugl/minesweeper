@@ -7,17 +7,26 @@ import pygame
 # Constants
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
-WIDTH_SEPARATOR = 2
-CELL_LENGTH = 50
+WIDTH_SEPARATOR = 1
+CELL_LENGTH = 40
 FIELD_OFFSET = 100
 
-ROW_COUNT = 10
-COL_COUNT = 20
-MINES_COUNT = 40
+DIFFICULTIES = {
+    "easy": {"row_count": 10, "col_count": 12, "mines_count": 15},
+    "medium": {"row_count": 10, "col_count": 20, "mines_count": 35},
+    "hard": {"row_count": 14, "col_count": 27, "mines_count": 65},
+}
 
-cell_values = [[0 for _ in range(COL_COUNT)] for _ in range(ROW_COUNT)]
+
+difficulty = DIFFICULTIES["medium"]
+
+cell_values = [
+    [0 for _ in range(difficulty["col_count"])] for _ in range(difficulty["row_count"])
+]
 # cell states: 0 - closed, 1 - flag, 2 - open
-cell_states = [[0 for _ in range(COL_COUNT)] for _ in range(ROW_COUNT)]
+cell_states = [
+    [0 for _ in range(difficulty["col_count"])] for _ in range(difficulty["row_count"])
+]
 
 
 def get_files_path():
@@ -27,10 +36,13 @@ def get_files_path():
         return "."
 
 
-def set_mines():
-    mines_indices = sample(range(ROW_COUNT * COL_COUNT), MINES_COUNT)
+def set_mines(difficulty):
+    rows = difficulty["row_count"]
+    cols = difficulty["col_count"]
+    mines = difficulty["mines_count"]
+    mines_indices = sample(range(rows * cols), mines)
     for ind in mines_indices:
-        cell_values[ind // COL_COUNT][ind % COL_COUNT] = -1
+        cell_values[ind // cols][ind % cols] = -1
 
 
 def show_timer(clock, screen):
@@ -53,7 +65,7 @@ def show_timer(clock, screen):
     font = pygame.font.SysFont(None, 40)
     text = f"{hour_txt}:{min_txt}:{sec_txt}"
     text_surface = font.render(text, True, "black")
-    text_rect = text_surface.get_rect(center=(300, 50))
+    text_rect = text_surface.get_rect(center=(600, 50))
     rect_background = text_rect.scale_by(1.2)
     pygame.draw.rect(screen, "white", rect_background, 0)
     screen.blit(text_surface, text_rect)
@@ -63,9 +75,12 @@ def show_timer(clock, screen):
 show_timer.time_ms = 0
 
 
-def set_numbers():
-    for i in range(ROW_COUNT):
-        for j in range(COL_COUNT):
+def set_numbers(difficulty):
+    rows = difficulty["row_count"]
+    cols = difficulty["col_count"]
+    mines = difficulty["mines_count"]
+    for i in range(rows):
+        for j in range(cols):
             value = 0
             if cell_values[i][j] == -1:
                 continue
@@ -73,27 +88,35 @@ def set_numbers():
                 value += 1 if cell_values[i - 1][j] == -1 else 0
             if j > 0:
                 value += 1 if cell_values[i][j - 1] == -1 else 0
-            if i < ROW_COUNT - 1:
+            if i < rows - 1:
                 value += 1 if cell_values[i + 1][j] == -1 else 0
-            if j < COL_COUNT - 1:
+            if j < cols - 1:
                 value += 1 if cell_values[i][j + 1] == -1 else 0
             if i > 0 and j > 0:
                 value += 1 if cell_values[i - 1][j - 1] == -1 else 0
-            if i < ROW_COUNT - 1 and j < COL_COUNT - 1:
+            if i < rows - 1 and j < cols - 1:
                 value += 1 if cell_values[i + 1][j + 1] == -1 else 0
-            if i > 0 and j < COL_COUNT - 1:
+            if i > 0 and j < cols - 1:
                 value += 1 if cell_values[i - 1][j + 1] == -1 else 0
-            if i < ROW_COUNT - 1 and j > 0:
+            if i < rows - 1 and j > 0:
                 value += 1 if cell_values[i + 1][j - 1] == -1 else 0
             cell_values[i][j] = value
 
 
-def draw_get_reset_button(img, screen):
-    rect_position = (130, 20)
+def draw_button(img, rect_position, screen):
     screen.blit(img, rect_position)
     rect_img = img.get_rect()
     rect_img.move_ip(rect_position)
     return rect_img
+
+
+def draw_difficulty_buttons(easy_img, medium_img, hard_img, screen):
+    difficulty_rects = {
+        "easy": draw_button(easy_img, (FIELD_OFFSET, 30), screen),
+        "medium": draw_button(medium_img, (FIELD_OFFSET + 130, 30), screen),
+        "hard": draw_button(hard_img, (FIELD_OFFSET + 260, 30), screen),
+    }
+    return difficulty_rects
 
 
 def load_image(name, length=CELL_LENGTH, height=CELL_LENGTH):
@@ -146,14 +169,16 @@ def draw_and_get_all_closed(screen, rows, cols, img):
     return rects
 
 
-def game_over(cells_array, screen, images, i_expl, j_expl):
+def game_over(cells_array, screen, images, difficulty, i_expl, j_expl):
     mine_img = images["mine"]
     number_imgs = images["numbers"]
     explode_img = images["explode"]
+    rows = difficulty["row_count"]
+    cols = difficulty["col_count"]
     main_path = get_files_path()
     explosion_sound_file = f"{main_path}/audio/dragon-studio-explosion-fx-425453.mp3"
-    for i in range(ROW_COUNT):
-        for j in range(COL_COUNT):
+    for i in range(rows):
+        for j in range(cols):
             cell = cells_array[i][j]
             value = cell_values[i][j]
             if value == -1:
@@ -173,7 +198,9 @@ def game_over(cells_array, screen, images, i_expl, j_expl):
     explosion_sound.play()
 
 
-def reveal_cells(screen, cells_array, images, i, j):
+def reveal_cells(screen, cells_array, images, difficulty, i, j):
+    rows = difficulty["row_count"]
+    cols = difficulty["col_count"]
     if cell_states[i][j] == 2 or cell_states[i][j] == 1:  # open or flag
         return
     value = cell_values[i][j]
@@ -185,21 +212,21 @@ def reveal_cells(screen, cells_array, images, i, j):
         return
 
     if i > 0:
-        reveal_cells(screen, cells_array, images, i - 1, j)
+        reveal_cells(screen, cells_array, images, difficulty, i - 1, j)
     if j > 0:
-        reveal_cells(screen, cells_array, images, i, j - 1)
-    if i < ROW_COUNT - 1:
-        reveal_cells(screen, cells_array, images, i + 1, j)
-    if j < COL_COUNT - 1:
-        reveal_cells(screen, cells_array, images, i, j + 1)
+        reveal_cells(screen, cells_array, images, difficulty, i, j - 1)
+    if i < rows - 1:
+        reveal_cells(screen, cells_array, images, difficulty, i + 1, j)
+    if j < cols - 1:
+        reveal_cells(screen, cells_array, images, difficulty, i, j + 1)
     if i > 0 and j > 0:
-        reveal_cells(screen, cells_array, images, i - 1, j - 1)
-    if i < ROW_COUNT - 1 and j < COL_COUNT - 1:
-        reveal_cells(screen, cells_array, images, i + 1, j + 1)
-    if i > 0 and j < COL_COUNT - 1:
-        reveal_cells(screen, cells_array, images, i - 1, j + 1)
-    if i < ROW_COUNT - 1 and j > 0:
-        reveal_cells(screen, cells_array, images, i + 1, j - 1)
+        reveal_cells(screen, cells_array, images, difficulty, i - 1, j - 1)
+    if i < rows - 1 and j < cols - 1:
+        reveal_cells(screen, cells_array, images, difficulty, i + 1, j + 1)
+    if i > 0 and j < cols - 1:
+        reveal_cells(screen, cells_array, images, difficulty, i - 1, j + 1)
+    if i < rows - 1 and j > 0:
+        reveal_cells(screen, cells_array, images, difficulty, i + 1, j - 1)
 
 
 def game_win(screen, time):
@@ -215,21 +242,24 @@ def game_win(screen, time):
     screen.blit(text_surface, text_rect)
 
 
-def new_game(screen, images, cell_values, cell_states):
-    cell_values[:] = [[0 for _ in range(COL_COUNT)] for _ in range(ROW_COUNT)]
-    cell_states[:] = [[0 for _ in range(COL_COUNT)] for _ in range(ROW_COUNT)]
-    reveal_cells.empty_remaining = ROW_COUNT * COL_COUNT - MINES_COUNT
+def new_game(screen, images, difficulty, cell_values, cell_states):
+    rows = difficulty["row_count"]
+    cols = difficulty["col_count"]
+    mines = difficulty["mines_count"]
+    cell_values[:] = [[0 for _ in range(cols)] for _ in range(rows)]
+    cell_states[:] = [[0 for _ in range(cols)] for _ in range(rows)]
+    reveal_cells.empty_remaining = rows * cols - mines
 
-    set_mines()
-    set_numbers()
+    set_mines(difficulty)
+    set_numbers(difficulty)
 
     screen.fill("white")
-    cells_array = draw_and_get_all_closed(
-        screen, ROW_COUNT, COL_COUNT, images["closed"]
+    cells_array = draw_and_get_all_closed(screen, rows, cols, images["closed"])
+    draw_frame(screen, rows, cols)
+    difficulty_rects = draw_difficulty_buttons(
+        images["easy"], images["medium"], images["hard"], screen
     )
-    draw_frame(screen, ROW_COUNT, COL_COUNT)
-    reset_cell = draw_get_reset_button(images["reset"], screen)
-    return cells_array, reset_cell
+    return cells_array, difficulty_rects
 
 
 def play_music():
@@ -265,6 +295,7 @@ def write_best_time(value):
 
 
 async def main():
+    global difficulty
 
     # Initialize
     pygame.init()
@@ -279,12 +310,16 @@ async def main():
         "flag": load_image("flag"),
         "mine": load_image("mine"),
         "explode": load_image("explode"),
-        "reset": load_image("reset"),
+        "easy": load_image("easy", 106, 40),
+        "medium": load_image("medium", 106, 40),
+        "hard": load_image("hard", 106, 40),
     }
 
     sound_click = get_sound_click()
 
-    cells_array, reset_cell = new_game(screen, cell_images, cell_values, cell_states)
+    cells_array, difficulty_rects = new_game(
+        screen, cell_images, difficulty, cell_values, cell_states
+    )
 
     play_music()
 
@@ -297,17 +332,38 @@ async def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            if event.type == pygame.MOUSEBUTTONDOWN and reset_cell.collidepoint(
-                pygame.mouse.get_pos()
-            ):  # reset
-                game_limbo = False
-                cells_array, reset_cell = new_game(
-                    screen, cell_images, cell_values, cell_states
-                )
-                show_timer.time_ms = 0
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if difficulty_rects["easy"].collidepoint(
+                    pygame.mouse.get_pos()
+                ):  # reset easy
+                    difficulty = DIFFICULTIES["easy"]
+                    game_limbo = False
+                    cells_array, difficulty_rects = new_game(
+                        screen, cell_images, difficulty, cell_values, cell_states
+                    )
+                    show_timer.time_ms = 0
+                elif difficulty_rects["medium"].collidepoint(
+                    pygame.mouse.get_pos()
+                ):  # reset medium
+                    difficulty = DIFFICULTIES["medium"]
+                    game_limbo = False
+                    cells_array, difficulty_rects = new_game(
+                        screen, cell_images, difficulty, cell_values, cell_states
+                    )
+                    show_timer.time_ms = 0
+                elif difficulty_rects["hard"].collidepoint(
+                    pygame.mouse.get_pos()
+                ):  # reset hard
+                    difficulty = DIFFICULTIES["hard"]
+                    game_limbo = False
+                    cells_array, difficulty_rects = new_game(
+                        screen, cell_images, difficulty, cell_values, cell_states
+                    )
+                    show_timer.time_ms = 0
+
             if not game_limbo and event.type == pygame.MOUSEBUTTONDOWN:  # main cells
-                for i in range(ROW_COUNT):
-                    for j in range(COL_COUNT):
+                for i in range(difficulty["row_count"]):
+                    for j in range(difficulty["col_count"]):
                         cell = cells_array[i][j]
                         value = cell_values[i][j]
                         if cell.collidepoint(pygame.mouse.get_pos()):
@@ -315,12 +371,26 @@ async def main():
                                 if cell_states[i][j] == 1:  # flag
                                     continue
                                 if value == -1:
-                                    game_over(cells_array, screen, cell_images, i, j)
+                                    game_over(
+                                        cells_array,
+                                        screen,
+                                        cell_images,
+                                        difficulty,
+                                        i,
+                                        j,
+                                    )
                                     game_limbo = True
                                 else:
                                     if cell_states[i][j] == 0:
                                         sound_click.play()
-                                    reveal_cells(screen, cells_array, cell_images, i, j)
+                                    reveal_cells(
+                                        screen,
+                                        cells_array,
+                                        cell_images,
+                                        difficulty,
+                                        i,
+                                        j,
+                                    )
                             if event.button == 3:  # Right mouse button
                                 if cell_states[i][j] == 0:  # closed
                                     sound_click.play()
