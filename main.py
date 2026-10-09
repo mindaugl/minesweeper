@@ -289,8 +289,6 @@ def get_best_times():
         for dif in ("easy", "medium", "hard"):
             line = f.readline()
             val = line.split(dif)[-1][1:].strip()
-            print(f"{line=}")
-            print(f"{val=}")
             if len(val):
                 times[dif] = float(val)
     return times
@@ -304,6 +302,28 @@ def write_best_times(times):
             if not val:
                 val = ""
             f.write(f"{dif}:{val}\n")
+
+
+def show_times(screen):
+    times = get_best_times()
+
+    window_color = "white"
+
+    window_r = pygame.Rect(FIELD_OFFSET, FIELD_OFFSET, 1150, 600)
+    pygame.draw.rect(screen, window_color, window_r, 0)
+
+    font = pygame.font.SysFont(None, 40)
+    text = "Best Times:\n\n"
+    for dif in ("easy", "medium", "hard"):
+        val = "-"
+        if times[dif]:
+            val = str(times[dif] / 1000) + "s"
+        text += f"{dif.capitalize()}: {val}\n"
+    text_surface = font.render(text, True, "black")
+    text_rect = text_surface.get_rect(center=(225, 225))
+    rect_background = text_rect.scale_by(1.2)
+    pygame.draw.rect(screen, window_color, rect_background, 0)
+    screen.blit(text_surface, text_rect)
 
 
 async def main():
@@ -385,6 +405,11 @@ async def main():
                         cell_states,
                     )
                     show_timer.time_ms = 0
+                elif high_times_rect.collidepoint(
+                    pygame.mouse.get_pos()
+                ):  # Best Times window
+                    game_limbo = True
+                    show_times(screen)
 
             if not game_limbo and event.type == pygame.MOUSEBUTTONDOWN:  # main cells
                 difficulty_params = DIFFICULTIES[difficulty]
